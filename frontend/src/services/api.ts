@@ -1,58 +1,40 @@
 import axios from 'axios';
-import {
-  Task,
-  CreateTaskDTO,
-  UpdateTaskDTO,
-  TaskStatus,
-} from '../types/task.types';
+import { Task, CreateTaskDTO, UpdateTaskDTO } from '../types/task.types';
 
-const API_BASE =
-  process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const apiClient = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000,
 });
 
-export const getTasks = async (): Promise<Task[]> => {
-  const response = await apiClient.get<Task[]>('/tasks');
-  return response.data;
+export const api = {
+  getTasks: async (): Promise<Task[]> => {
+    const response = await apiClient.get<Task[]>('/tasks');
+    return response.data;
+  },
+
+  createTask: async (data: CreateTaskDTO): Promise<Task> => {
+    const response = await apiClient.post<Task>('/tasks', data);
+    return response.data;
+  },
+
+  updateTask: async (id: string, updates: UpdateTaskDTO): Promise<Task> => {
+    const response = await apiClient.patch<Task>(`/tasks/${id}`, updates);
+    return response.data;
+  },
+
+  deleteTask: async (id: string): Promise<void> => {
+    await apiClient.delete(`/tasks/${id}`);
+  },
+
+  registerUser: async (displayName: string) => {
+    const response = await apiClient.post('/users', { displayName });
+    return response.data;
+  },
 };
 
-export const createTask = async (
-  payload: CreateTaskDTO
-): Promise<Task> => {
-  const response = await apiClient.post<Task>('/tasks', payload);
-  return response.data;
-};
-
-export const updateTask = async (
-  id: string,
-  updates: UpdateTaskDTO
-): Promise<Task> => {
-  const response = await apiClient.put<Task>(
-    `/tasks/${id}`,
-    updates
-  );
-  return response.data;
-};
-
-export const moveTask = async (
-  id: string,
-  status: TaskStatus
-): Promise<Task> => {
-  const response = await apiClient.patch<Task>(
-    `/tasks/${id}/move`,
-    { status }
-  );
-  return response.data;
-};
-
-export const deleteTask = async (
-  id: string
-): Promise<string> => {
-  await apiClient.delete(`/tasks/${id}`);
-  return id;
-};
+export default api;
