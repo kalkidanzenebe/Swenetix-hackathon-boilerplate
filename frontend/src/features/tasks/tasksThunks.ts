@@ -1,82 +1,81 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import {
-  CreateTaskDTO,
-  UpdateTaskDTO,
-  TaskStatus,
-} from '../../types/task.types';
-import * as api from '../../services/api';
+import { api } from '../../services/api';
+import { Task, CreateTaskDTO, UpdateTaskDTO, Column } from '../../types/task.types';
 
-// Fetch all tasks from MongoDB via Express backend
-export const fetchTasksAsync = createAsyncThunk(
+export const fetchTasksAsync = createAsyncThunk<Task[], void, { rejectValue: string }>(
   'tasks/fetchTasks',
   async (_, { rejectWithValue }) => {
     try {
       return await api.getTasks();
-    } catch (error: any) {
+    } catch (err: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Failed to fetch tasks'
+        err.response?.data?.message || 'Failed to fetch tasks from server'
       );
     }
   }
 );
 
-// Create a new task
-export const createTaskAsync = createAsyncThunk(
+export const createTaskAsync = createAsyncThunk<Task, CreateTaskDTO, { rejectValue: string }>(
   'tasks/createTask',
-  async (data: CreateTaskDTO, { rejectWithValue }) => {
+  async (taskData, { rejectWithValue }) => {
     try {
-      return await api.createTask(data);
-    } catch (error: any) {
+      return await api.createTask(taskData);
+    } catch (err: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Failed to create task'
+        err.response?.data?.message || 'Failed to create task'
       );
     }
   }
 );
 
-// Update task details (title, description, status)
-export const updateTaskAsync = createAsyncThunk(
+export const updateTaskAsync = createAsyncThunk<
+  Task,
+  { id: string; updates: UpdateTaskDTO },
+  { rejectValue: string }
+>(
   'tasks/updateTask',
-  async (
-    { id, updates }: { id: string; updates: UpdateTaskDTO },
-    { rejectWithValue }
-  ) => {
+  async ({ id, updates }, { rejectWithValue }) => {
     try {
       return await api.updateTask(id, updates);
-    } catch (error: any) {
+    } catch (err: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Failed to update task'
+        err.response?.data?.message || 'Failed to update task'
       );
     }
   }
 );
 
-// Move task to another column status
-export const moveTaskAsync = createAsyncThunk(
+export const moveTaskAsync = createAsyncThunk<
+  Task,
+  { id: string; column: Column; order: number; version: number; updatedBy?: string },
+  { rejectValue: string }
+>(
   'tasks/moveTask',
-  async (
-    { id, status }: { id: string; status: TaskStatus },
-    { rejectWithValue }
-  ) => {
+  async ({ id, column, order, version, updatedBy }, { rejectWithValue }) => {
     try {
-      return await api.moveTask(id, status);
-    } catch (error: any) {
+      return await api.updateTask(id, {
+        column,
+        order,
+        version,
+        updatedBy: updatedBy || 'unknown',
+      });
+    } catch (err: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Failed to move task'
+        err.response?.data?.message || 'Failed to persist task movement'
       );
     }
   }
 );
 
-// Delete task by ID
-export const deleteTaskAsync = createAsyncThunk(
+export const deleteTaskAsync = createAsyncThunk<string, string, { rejectValue: string }>(
   'tasks/deleteTask',
-  async (id: string, { rejectWithValue }) => {
+  async (id, { rejectWithValue }) => {
     try {
-      return await api.deleteTask(id);
-    } catch (error: any) {
+      await api.deleteTask(id);
+      return id;
+    } catch (err: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Failed to delete task'
+        err.response?.data?.message || 'Failed to delete task'
       );
     }
   }

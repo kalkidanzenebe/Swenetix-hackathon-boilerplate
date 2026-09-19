@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Task, TaskStatus } from '../../types/task.types';
+import { Task, Column } from '../../types/task.types';
 import {
   fetchTasksAsync,
   createTaskAsync,
@@ -20,28 +20,38 @@ const initialState: TasksState = {
   error: null,
 };
 
-const tasksSlice = createSlice({
+export const tasksSlice = createSlice({
   name: 'tasks',
   initialState,
-
   reducers: {
-    // Immediate local optimistic state update during drag-and-drop
     moveTaskOptimistic: (
       state,
-      action: PayloadAction<{ id: string; status: TaskStatus }>
+      action: PayloadAction<{ id: string; column: Column; order: number }>
     ) => {
-      const task = state.items.find(
-        (item) => item._id === action.payload.id
-      );
+      const task = state.items.find((t) => (t._id || t.id) === action.payload.id);
       if (task) {
-        task.status = action.payload.status;
+        task.column = action.payload.column;
+        task.order = action.payload.order;
       }
     },
 
-    // Handlers for incoming real-time socket broadcasts (Milestone 2)
+    setLockOptimistic: (
+      state,
+      action: PayloadAction<{ id: string; lockedBy: string | null; lockedAt?: string | null }>
+    ) => {
+      const task = state.items.find((t) => (t._id || t.id) === action.payload.id);
+      if (task) {
+        task.lockedBy = action.payload.lockedBy;
+        task.lockedAt = action.payload.lockedAt || null;
+      }
+    },
+
     taskCreatedRemote: (state, action: PayloadAction<Task>) => {
+      const targetId = action.payload._id || action.payload.id;
       const exists = state.items.some(
-        (item) => item._id === action.payload._id
+        (t) =>
+          (t._id || t.id) === targetId ||
+          (t.clientId && t.clientId === action.payload.clientId)
       );
       if (!exists) {
         state.items.push(action.payload);
@@ -49,24 +59,19 @@ const tasksSlice = createSlice({
     },
 
     taskUpdatedRemote: (state, action: PayloadAction<Task>) => {
-      const index = state.items.findIndex(
-        (item) => item._id === action.payload._id
-      );
+      const targetId = action.payload._id || action.payload.id;
+      const index = state.items.findIndex((t) => (t._id || t.id) === targetId);
       if (index !== -1) {
         state.items[index] = action.payload;
       }
     },
 
     taskDeletedRemote: (state, action: PayloadAction<string>) => {
-      state.items = state.items.filter(
-        (item) => item._id !== action.payload
-      );
+      state.items = state.items.filter((t) => (t._id || t.id) !== action.payload);
     },
   },
-
   extraReducers: (builder) => {
     builder
-      // Fetch Tasks
       .addCase(fetchTasksAsync.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -77,57 +82,45 @@ const tasksSlice = createSlice({
       })
       .addCase(fetchTasksAsync.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || 'Failed to load tasks';
-      })
-
-      // Create Task
-      .addCase(createTaskAsync.fulfilled, (state, action: PayloadAction<Task>) => {
-        state.items.push(action.payload);
-      })
-      .addCase(createTaskAsync.rejected, (state, action) => {
-        state.error = (action.payload as string) || 'Failed to create task';
-      })
-
-      // Update Task Details
-      .addCase(updateTaskAsync.fulfilled, (state, action: PayloadAction<Task>) => {
-        const index = state.items.findIndex(
-          (item) => item._id === action.payload._id
-        );
-        if (index !== -1) {
-          state.items[index] = action.payload;
-        }
-      })
-      .addCase(updateTaskAsync.rejected, (state, action) => {
-        state.error = (action.payload as string) || 'Failed to update task';
-      })
-
-      // Move Task (Server Confirmation)
-      .addCase(moveTaskAsync.fulfilled, (state, action: PayloadAction<Task>) => {
-        const index = state.items.findIndex(
-          (item) => item._id === action.payload._id
-        );
-        if (index !== -1) {
-          state.items[index] = action.payload;
-        }
-      })
-      .addCase(moveTaskAsync.rejected, (state, action) => {
-        state.error = (action.payload as string) || 'Failed to move task';
-      })
-
-      // Delete Task
-      .addCase(deleteTaskAsync.fulfilled, (state, action: PayloadAction<string>) => {
-        state.items = state.items.filter(
-          (item) => item._id !== action.payload
-        );
-      })
-      .addCase(deleteTaskAsync.rejected, (state, action) => {
-        state.error = (action.payload as string) || 'Failed to delete task';
+        state.error = action.payload || 'Failed to fetch tasks';
       });
+
+    builder.addCase(createTaskAsync.fulfilled, (state, action: PayloadAction<Task>) => {
+      const index = state.items.findIndex(
+        (t) => t.clientId && t.clientId === action.payload.clientId
+      );
+      if (index !== -1) {
+        state.items[index] = action.payload;
+      } else {
+        state.items.push(action.payload);
+      }
+    });
+
+    builder.addCase(updateTaskAsync.fulfilled, (state, action: PayloadAction<Task>) => {
+      const targetId = action.payload._id || action.payload.id;
+      const index = state.items.findIndex((t) => (t._id || t.id) === targetId);
+      if (index !== -1) {
+        state.items[index] = action.payload;
+      }
+    });
+
+    builder.addCase(moveTaskAsync.fulfilled, (state, action: PayloadAction<Task>) => {
+      const targetId = action.payload._id || action.payload.id;
+      const index = state.items.findIndex((t) => (t._id || t.id) === targetId);
+      if (index !== -1) {
+        state.items[index] = action.payload;
+      }
+    });
+
+    builder.addCase(deleteTaskAsync.fulfilled, (state, action: PayloadAction<string>) => {
+      state.items = state.items.filter((t) => (t._id || t.id) !== action.payload);
+    });
   },
 });
 
 export const {
   moveTaskOptimistic,
+  setLockOptimistic,
   taskCreatedRemote,
   taskUpdatedRemote,
   taskDeletedRemote,
