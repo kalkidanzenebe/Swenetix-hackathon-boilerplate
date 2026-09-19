@@ -6,12 +6,12 @@ import {
   moveTask,
   deleteTask,
 } from "../controllers/taskController";
-// import { requireAuth } from "../middleware/auth";
+import { requireAuth } from "../middleware/auth";
 import { asyncHandler } from "../utils/asyncHandler";
 
 const router = Router();
 
-// router.use(requireAuth);
+router.use(requireAuth);
 
 router.get("/", asyncHandler(listTasks));
 router.post("/", asyncHandler(createTask));

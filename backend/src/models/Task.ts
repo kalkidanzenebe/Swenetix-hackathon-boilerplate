@@ -6,24 +6,19 @@ export type Status = (typeof STATUSES)[number];
 export const PRIORITIES = ["low", "medium", "high"] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
-/** A held editing lock goes stale this long after its last heartbeat. */
 export const LOCK_TTL_MS = 15_000;
 
 export interface ITask extends Document {
   _id: Types.ObjectId;
   title: string;
   description: string;
-  // Fractional index: a task sits between its neighbours without renumbering the column.
   order: number;
   priority: Priority;
   createdBy: string;
   assignedTo: string | null;
-  // Who currently has the task open, refreshed by heartbeat while their editor is open.
   lockedBy: string | null;
   lockedAt: Date | null;
-  // Bumped on every write; clients send the version they edited for conflict detection.
   version: number;
-  // Client-generated id, set by the offline queue so a replayed create is not duplicated.
   clientId?: string;
   labels: string[];
   dueDate: Date | null;
