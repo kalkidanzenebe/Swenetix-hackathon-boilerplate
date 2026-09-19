@@ -10,7 +10,13 @@ const apiClient = axios.create({
   },
   timeout: 10000,
 });
-
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('kanban_token');
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 export const api = {
   getTasks: async (): Promise<Task[]> => {
     const response = await apiClient.get<Task[]>('/tasks');
