@@ -26,8 +26,6 @@ export const attachRealtime = (httpServer: HttpServer, origin: string | string[]
 
   setIO(io);
 
-  // The socket carries the same token as the REST calls, so presence cannot be spoofed
-  // any more easily than the API itself.
   io.use((socket: BoardSocket, next) => {
     const token = (socket.handshake.auth?.token as string) || "";
     const user = verifyToken(token);
@@ -59,7 +57,6 @@ export const attachRealtime = (httpServer: HttpServer, origin: string | string[]
     socket.join(BOARD);
     addSocket(socket.id, member);
 
-    // Give the joiner the current picture before anyone else changes it.
     socket.emit("board:hello", {
       you: member,
       users: roster(),
@@ -80,7 +77,6 @@ export const attachRealtime = (httpServer: HttpServer, origin: string | string[]
       if (granted) broadcastLocks();
     });
 
-    // Heartbeat while a card's editor is open, so a dead tab's badge expires on its own.
     socket.on("editing:ping", (payload: { taskId?: string }) => {
       if (payload?.taskId) acquireLock(payload.taskId, socket.id, member);
     });

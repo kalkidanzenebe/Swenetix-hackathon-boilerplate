@@ -35,7 +35,6 @@ export const serialise = (task: ITask) => ({
 
 export type SerialisedTask = ReturnType<typeof serialise>;
 
-/** Appends to the bottom of a column without renumbering its siblings. */
 const nextOrder = async (status: Status): Promise<number> => {
   const last = await Task.findOne({ status }).sort({ order: -1 }).select("order").lean();
   return last ? last.order + ORDER_GAP : ORDER_GAP;
@@ -58,7 +57,6 @@ export const createTask = async (req: AuthedRequest, res: Response): Promise<voi
     return;
   }
 
-  // A create replayed from the offline queue must not produce a second card.
   if (clientId) {
     const existing = await Task.findOne({ clientId });
     if (existing) {
@@ -88,7 +86,6 @@ export const createTask = async (req: AuthedRequest, res: Response): Promise<voi
       clientId,
     });
   } catch (err) {
-    // Lost a race with a concurrent replay of the same offline op.
     if ((err as { code?: number }).code === 11000 && clientId) {
       const existing = await Task.findOne({ clientId });
       if (existing) {
@@ -108,11 +105,6 @@ type Editable = Partial<
   Pick<ITask, "title" | "description" | "status" | "priority" | "assignedTo" | "labels" | "dueDate">
 >;
 
-/**
- * Content edits are guarded by optimistic concurrency: the client sends the version it
- * started from, and a stale version is rejected with the current server copy so the UI
- * can resolve the conflict instead of silently clobbering someone's work.
- */
 export const updateTask = async (req: AuthedRequest, res: Response): Promise<void> => {
   const { id } = req.params;
   const version = Number(req.body?.version);
@@ -153,7 +145,6 @@ export const updateTask = async (req: AuthedRequest, res: Response): Promise<voi
     updates.priority = req.body.priority;
   }
 
-  // These three accept null to mean "clear it", so presence in the body is what counts.
   if ("assignedTo" in (req.body || {})) {
     updates.assignedTo = normaliseAssignee(req.body.assignedTo);
   }
@@ -198,10 +189,6 @@ export const updateTask = async (req: AuthedRequest, res: Response): Promise<voi
   res.status(200).json({ success: true, data: payload });
 };
 
-/**
- * Moves are deliberately version-free. Two people dragging the same card is a race with
- * no losing data — last drop wins — and blocking it would make the board feel broken.
- */
 export const moveTask = async (req: AuthedRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
