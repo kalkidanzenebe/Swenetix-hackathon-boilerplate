@@ -1,6 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { api } from '../../services/api';
-import { Task, CreateTaskDTO, UpdateTaskDTO, Column } from '../../types/task.types';
+import { Task, CreateTaskDTO, UpdateTaskDTO, TaskStatus } from '../../types/task.types';
 
 export const fetchTasksAsync = createAsyncThunk<Task[], void, { rejectValue: string }>(
   'tasks/fetchTasks',
@@ -47,18 +47,13 @@ export const updateTaskAsync = createAsyncThunk<
 
 export const moveTaskAsync = createAsyncThunk<
   Task,
-  { id: string; column: Column; order: number; version: number; updatedBy?: string },
+  { id: string; status: TaskStatus; order?: number },
   { rejectValue: string }
 >(
   'tasks/moveTask',
-  async ({ id, column, order, version, updatedBy }, { rejectWithValue }) => {
+  async ({ id, status, order }, { rejectWithValue }) => {
     try {
-      return await api.updateTask(id, {
-        column,
-        order,
-        version,
-        updatedBy: updatedBy || 'unknown',
-      });
+      return await api.moveTask(id, { status, order });
     } catch (err: any) {
       return rejectWithValue(
         err.response?.data?.message || 'Failed to persist task movement'

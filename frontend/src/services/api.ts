@@ -19,18 +19,23 @@ apiClient.interceptors.request.use((config) => {
 });
 export const api = {
   getTasks: async (): Promise<Task[]> => {
-    const response = await apiClient.get<Task[]>('/tasks');
-    return response.data;
+    const response = await apiClient.get<any>('/tasks');
+    return response.data?.data || response.data || [];
   },
 
   createTask: async (data: CreateTaskDTO): Promise<Task> => {
-    const response = await apiClient.post<Task>('/tasks', data);
-    return response.data;
+    const response = await apiClient.post<any>('/tasks', data);
+    return response.data?.data || response.data;
   },
 
   updateTask: async (id: string, updates: UpdateTaskDTO): Promise<Task> => {
-    const response = await apiClient.patch<Task>(`/tasks/${id}`, updates);
-    return response.data;
+    const response = await apiClient.patch<any>(`/tasks/${id}`, updates);
+    return response.data?.data || response.data;
+  },
+
+  moveTask: async (id: string, payload: { status: string; order?: number }): Promise<Task> => {
+    const response = await apiClient.patch<any>(`/tasks/${id}/move`, payload);
+    return response.data?.data || response.data;
   },
 
   deleteTask: async (id: string): Promise<void> => {
@@ -38,8 +43,8 @@ export const api = {
   },
 
   registerUser: async (displayName: string) => {
-    const response = await apiClient.post('/users', { displayName });
-    return response.data;
+    const response = await apiClient.post<any>('/auth/register', { displayName });
+    return response.data?.data || response.data;
   },
 };
 

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Task, Column } from '../../types/task.types';
+import { Task, TaskStatus } from '../../types/task.types';
 import {
   fetchTasksAsync,
   createTaskAsync,
@@ -26,12 +26,14 @@ export const tasksSlice = createSlice({
   reducers: {
     moveTaskOptimistic: (
       state,
-      action: PayloadAction<{ id: string; column: Column; order: number }>
+      action: PayloadAction<{ id: string; status: TaskStatus; order?: number }>
     ) => {
       const task = state.items.find((t) => (t._id || t.id) === action.payload.id);
       if (task) {
-        task.column = action.payload.column;
-        task.order = action.payload.order;
+        task.status = action.payload.status;
+        if (action.payload.order !== undefined) {
+          task.order = action.payload.order;
+        }
       }
     },
 

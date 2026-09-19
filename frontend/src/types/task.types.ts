@@ -1,11 +1,17 @@
-export const COLUMNS = ['todo', 'in-progress', 'done'] as const;
-export type Column = (typeof COLUMNS)[number];
-export type TaskStatus = Column;
+export const STATUSES = ['todo', 'in-progress', 'done'] as const;
+export type Status = (typeof STATUSES)[number];
+export type TaskStatus = Status;
 
-export type Priority = 'low' | 'medium' | 'high';
+export const COLUMNS = STATUSES;
+export type Column = Status;
+
+export const PRIORITIES = ['low', 'medium', 'high'] as const;
+export type Priority = (typeof PRIORITIES)[number];
+
+export const LOCK_TTL_MS = 15_000;
 
 export interface ColumnDef {
-  id: Column;
+  id: TaskStatus;
   title: string;
 }
 
@@ -16,49 +22,69 @@ export const BOARD_COLUMNS: ColumnDef[] = [
 ];
 
 export interface Task {
-  _id: string;
-  id?: string;
+  _id?: string;
+  id: string;
   title: string;
   description: string;
-  column: Column;
+  status: TaskStatus;
   order: number;
-  priority?: Priority;
+  priority: Priority;
   createdBy: string;
-  assignedTo?: string;
-  lockedBy?: string | null;
-  lockedAt?: string | null;
+  assignedTo: string | null;
+  lockedBy: string | null;
+  lockedAt: string | Date | null;
   version: number;
   clientId?: string;
+  labels: string[];
   label?: string;
-  dueDate?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
+  dueDate: string | Date | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 export interface CreateTaskDTO {
   title: string;
   description?: string;
-  column: Column;
-  order: number;
+  status: TaskStatus;
+  order?: number;
   priority?: Priority;
   createdBy?: string;
-  assignedTo?: string;
-  clientId?: string;
+  assignedTo?: string | null;
+  labels?: string[];
   label?: string;
-  dueDate?: string | null;
+  dueDate?: string | Date | null;
+  clientId?: string;
 }
 
 export interface UpdateTaskDTO {
+  version: number;
   title?: string;
   description?: string;
-  column?: Column;
+  status?: TaskStatus;
   order?: number;
   priority?: Priority;
-  assignedTo?: string;
-  lockedBy?: string | null;
-  lockedAt?: string | null;
-  version: number;
+  assignedTo?: string | null;
+  labels?: string[];
   label?: string;
-  dueDate?: string | null;
+  dueDate?: string | Date | null;
   updatedBy?: string;
 }
+
+export interface MoveTaskDTO {
+  id: string;
+  status: TaskStatus;
+  order?: number;
+  version?: number;
+  updatedBy?: string;
+}
+
+export interface ActiveLock {
+  taskId: string;
+  socketId: string;
+  user: {
+    id: string;
+    displayName: string;
+    color: string;
+  };
+  lockedAt: number;
+}

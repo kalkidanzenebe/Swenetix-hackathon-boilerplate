@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Task, Column, Priority, BOARD_COLUMNS } from '../../types/task.types';
+import { Task, TaskStatus, Priority, BOARD_COLUMNS } from '../../types/task.types';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { createTaskAsync, updateTaskAsync } from '../../features/tasks/tasksThunks';
 import { X } from 'lucide-react';
@@ -8,14 +8,14 @@ interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   taskToEdit?: Task | null;
-  defaultColumn?: Column;
+  defaultStatus?: TaskStatus;
 }
 
 export const TaskModal: React.FC<TaskModalProps> = ({
   isOpen,
   onClose,
   taskToEdit,
-  defaultColumn = 'todo',
+  defaultStatus = 'todo',
 }) => {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector((state) => state.auth?.currentUser);
@@ -23,7 +23,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [column, setColumn] = useState<Column>(defaultColumn);
+  const [status, setStatus] = useState<TaskStatus>(defaultStatus);
   const [priority, setPriority] = useState<Priority>('medium');
   const [assignedTo, setAssignedTo] = useState('');
   const [label, setLabel] = useState('');
@@ -34,21 +34,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     if (taskToEdit) {
       setTitle(taskToEdit.title);
       setDescription(taskToEdit.description || '');
-      setColumn(taskToEdit.column);
+      setStatus(taskToEdit.status);
       setPriority(taskToEdit.priority || 'medium');
       setAssignedTo(taskToEdit.assignedTo || '');
-      setLabel(taskToEdit.label || '');
-      setDueDate(taskToEdit.dueDate ? taskToEdit.dueDate.substring(0, 10) : '');
+      setLabel(taskToEdit.label || (taskToEdit.labels && taskToEdit.labels[0]) || '');
+      setDueDate(taskToEdit.dueDate ? new Date(taskToEdit.dueDate).toISOString().substring(0, 10) : '');
     } else {
       setTitle('');
       setDescription('');
-      setColumn(defaultColumn);
+      setStatus(defaultStatus);
       setPriority('medium');
       setAssignedTo('');
       setLabel('');
       setDueDate('');
     }
-  }, [taskToEdit, defaultColumn, isOpen]);
+  }, [taskToEdit, defaultStatus, isOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,13 +60,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   if (!isOpen) return null;
 
-  const calculateNewOrder = (targetCol: Column): number => {
-    const colTasks = tasks
-      .filter((t) => t.column === targetCol)
+  const calculateNewOrder = (targetStatus: TaskStatus): number => {
+    const statusTasks = tasks
+      .filter((t) => t.status === targetStatus)
       .sort((a, b) => a.order - b.order);
 
-    if (colTasks.length === 0) return 1000;
-    return colTasks[colTasks.length - 1].order + 1000;
+    if (statusTasks.length === 0) return 1000;
+    return statusTasks[statusTasks.length - 1].order + 1000;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,10 +86,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             updates: {
               title: trimmedTitle,
               description: description.trim(),
-              column,
+              status,
               priority,
-              assignedTo: assignedTo.trim(),
-              label: label.trim(),
+              assignedTo: assignedTo.trim() || null,
+              labels: label.trim() ? [label.trim()] : [],
               dueDate: dueDate || null,
               version: taskToEdit.version,
               updatedBy: author,
@@ -101,12 +101,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           createTaskAsync({
             title: trimmedTitle,
             description: description.trim(),
-            column,
-            order: calculateNewOrder(column),
+            status,
+            order: calculateNewOrder(status),
             priority,
             createdBy: author,
-            assignedTo: assignedTo.trim(),
-            label: label.trim(),
+            assignedTo: assignedTo.trim() || null,
+            labels: label.trim() ? [label.trim()] : [],
             dueDate: dueDate || null,
             clientId: `client-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           })
@@ -175,11 +175,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                Column
+                Status
               </label>
               <select
-                value={column}
-                onChange={(e) => setColumn(e.target.value as Column)}
+                value={status}
+                onChange={(e) => setStatus(e.target.value as TaskStatus)}
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
               >
                 {BOARD_COLUMNS.map((col) => (
