@@ -7,7 +7,7 @@ import Column from './Column';
 
 export default function Board() {
   const dispatch = useAppDispatch();
-const loading = false;
+  const loading = false;
   const [openTask, setOpenTask] = useState<Task | null>(null);
 
   useEffect(() => {
@@ -27,13 +27,12 @@ const loading = false;
     dispatch(
       moveTaskAsync({
         id: draggableId,
-        toStatus: destination.droppableId as Task['status'],
-        toIndex: destination.index,
+        status: destination.droppableId as Task['status'],
       })
     );
   };
 
-  if (loading == true) {
+  if (loading) {
     return <p className="p-8 text-center text-gray-500">Loading board...</p>;
   }
 
