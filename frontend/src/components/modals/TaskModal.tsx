@@ -140,30 +140,30 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-md"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-xl p-6 shadow-2xl transition-all"
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-slate-950/95 border border-slate-800/90 rounded-2xl p-5 sm:p-6 shadow-2xl shadow-black/40 ring-1 ring-white/[0.03] transition-all"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-          <h3 className="text-base font-semibold text-slate-100">
+        <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-800/80">
+          <h3 className="text-lg font-semibold tracking-tight text-white">
             {taskToEdit ? 'Edit Task' : 'Create New Task'}
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors"
+            className="p-2 -mr-2 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/70"
           >
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              Title <span className="text-red-400">*</span>
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-2">
+              Title <span className="text-rose-400" aria-hidden="true">*</span>
             </label>
             <input
               type="text"
@@ -172,13 +172,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Task title..."
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+              className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-sm text-slate-100 placeholder-slate-500 outline-none transition-all hover:border-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-2">
               Description
             </label>
             <textarea
@@ -186,19 +186,19 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Task details..."
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all resize-y"
+              className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-sm text-slate-100 placeholder-slate-500 outline-none transition-all hover:border-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-2">
                 Status
               </label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
+                className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-sm text-slate-100 outline-none transition-all hover:border-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
               >
                 {BOARD_COLUMNS.map((col) => (
                   <option key={col.id} value={col.id}>
@@ -209,13 +209,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-2">
                 Priority
               </label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as Priority)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
+                className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-sm text-slate-100 outline-none transition-all hover:border-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -226,7 +226,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-2">
                 Assigned To
               </label>
               <input
@@ -234,12 +234,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 value={assignedTo}
                 onChange={(e) => setAssignedTo(e.target.value)}
                 placeholder="Name or email..."
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+                className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-sm text-slate-100 placeholder-slate-500 outline-none transition-all hover:border-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-2">
                 Label
               </label>
               <input
@@ -247,35 +247,35 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="e.g. Bug, Feature, UI"
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+                className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-sm text-slate-100 placeholder-slate-500 outline-none transition-all hover:border-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-2">
               Due Date
             </label>
             <input
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-blue-500 transition-all"
+              className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-sm text-slate-100 outline-none transition-all hover:border-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
 
-          <div className="flex justify-end items-center gap-2.5 pt-4 border-t border-slate-800">
+          <div className="flex flex-col-reverse sm:flex-row justify-end items-stretch sm:items-center gap-2.5 pt-5 mt-1 border-t border-slate-800/80">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-700 rounded-lg transition-colors"
+              className="px-4 py-2.5 text-sm font-medium text-slate-300 bg-slate-900/80 hover:bg-slate-800 hover:text-white border border-slate-700/80 rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/70"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !title.trim()}
-              className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all"
+              className="px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-lg shadow-indigo-500/15 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/70"
             >
               {isSubmitting ? 'Saving...' : taskToEdit ? 'Save Changes' : 'Create Task'}
             </button>

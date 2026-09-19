@@ -23,10 +23,7 @@ export default function Board() {
     const { source, destination, draggableId } = result;
     if (!destination) return;
 
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
+    if (source.droppableId === destination.droppableId && source.index === destination.index) {
       return;
     }
 
@@ -34,22 +31,10 @@ export default function Board() {
     const newOrder = destination.index * 1000 + 1000;
 
     // Optimistic update
-    dispatch(
-      moveTaskOptimistic({
-        id: draggableId,
-        status: nextStatus,
-        order: newOrder,
-      })
-    );
+    dispatch(moveTaskOptimistic({ id: draggableId, status: nextStatus, order: newOrder }));
 
     // Server update
-    dispatch(
-      moveTaskAsync({
-        id: draggableId,
-        status: nextStatus,
-        order: newOrder,
-      })
-    );
+    dispatch(moveTaskAsync({ id: draggableId, status: nextStatus, order: newOrder }));
   };
 
   const stats = useMemo(() => {
@@ -60,28 +45,28 @@ export default function Board() {
   }, [tasks]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
+    <div className="flex h-[calc(100vh-4rem)] flex-col bg-slate-50">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-3">
+      <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 shadow-sm">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Tasks</h2>
-            <p className="text-xs text-gray-500">{stats.total} total</p>
+            <h2 className="text-base font-semibold text-slate-800">Tasks</h2>
+            <p className="text-xs text-slate-500">{stats.total} total</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="hidden items-center gap-2 md:flex">
-              <span className="text-xs text-gray-500">{stats.percentDone}% complete</span>
-              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-200">
+              <span className="text-xs text-slate-500">{stats.percentDone}% complete</span>
+              <div className="h-1.5 w-28 overflow-hidden rounded-full bg-slate-200">
                 <div
                   style={{ width: `${stats.percentDone}%` }}
-                  className="h-full rounded-full bg-gray-900"
+                  className="h-full rounded-full bg-indigo-400 transition-all"
                 />
               </div>
             </div>
             <button
               type="button"
               onClick={() => setIsNewTaskModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800"
+              className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 transition-all"
             >
               <Plus size={14} />
               <span>New task</span>
@@ -91,14 +76,14 @@ export default function Board() {
       </div>
 
       {/* Board */}
-      <div className="relative flex-1 overflow-x-auto bg-white p-6">
+      <div className="relative flex-1 overflow-x-auto bg-slate-100 p-8">
         {loading && tasks.length === 0 ? (
           <div className="flex h-64 items-center justify-center">
-            <p className="text-xs text-gray-500">Loading board...</p>
+            <p className="text-sm text-slate-400">Loading board...</p>
           </div>
         ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="flex min-h-full items-start gap-4">
+            <div className="flex min-h-full items-start gap-6">
               {BOARD_COLUMNS.map((column) => (
                 <Column key={column.id} column={column} onOpenTask={setOpenTask} />
               ))}
