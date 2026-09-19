@@ -2,7 +2,6 @@ import { Droppable } from '@hello-pangea/dnd';
 import { ClipboardList, Zap, CheckCircle2 } from 'lucide-react';
 import { useAppSelector } from '../../app/hooks';
 import type { ColumnDef, Task, TaskStatus } from '../../types/task.types';
-import type { ColumnDef, Task, TaskStatus } from '../../types/task.types';
 import TaskCard from './TaskCard';
 import QuickAddTask from './QuickAddTask';
 
