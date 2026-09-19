@@ -51,31 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Center: Live Connection Pill */}
-        <div className="hidden sm:flex items-center">
-          <div
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-              isConnected
-                ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
-                : 'border-rose-500/20 bg-rose-500/10 text-rose-400'
-            }`}
-          >
-            {isConnected ? (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span>Live Sync</span>
-              </>
-            ) : (
-              <>
-                <WifiOff size={12} />
-                <span>Offline</span>
-              </>
-            )}
-          </div>
-        </div>
+
 
         {/* Right: Active Collaborators, Current User & Logout */}
         <div className="flex items-center gap-4">

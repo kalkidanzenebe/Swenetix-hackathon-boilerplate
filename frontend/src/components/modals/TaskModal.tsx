@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Task, TaskStatus, Priority, BOARD_COLUMNS } from '../../types/task.types';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { createTaskAsync, updateTaskAsync } from '../../features/tasks/tasksThunks';
+import { getSocket } from '../../services/socket';
 import { X } from 'lucide-react';
 
 interface TaskModalProps {
@@ -49,6 +50,23 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setDueDate('');
     }
   }, [taskToEdit, defaultStatus, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && taskToEdit) {
+      const taskId = taskToEdit._id || taskToEdit.id;
+      const socket = getSocket();
+      socket.emit('editing:start', { taskId });
+
+      const pingInterval = setInterval(() => {
+        socket.emit('editing:ping', { taskId });
+      }, 5000);
+
+      return () => {
+        clearInterval(pingInterval);
+        socket.emit('editing:stop', { taskId });
+      };
+    }
+  }, [isOpen, taskToEdit]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

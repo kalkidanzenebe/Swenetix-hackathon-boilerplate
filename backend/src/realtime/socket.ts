@@ -35,7 +35,7 @@ export const attachRealtime = (httpServer: HttpServer, origin: string | string[]
       return;
     }
 
-    socket.member = { id: user.id, displayName: user.displayName, color: user.color };
+    socket.member = { id: user.id, displayName: user.displayName, color: 'green' };
     next();
   });
 

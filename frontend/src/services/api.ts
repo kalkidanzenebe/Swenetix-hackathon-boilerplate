@@ -43,7 +43,7 @@ export const api = {
   },
 
   registerUser: async (displayName: string) => {
-    const response = await apiClient.post<any>('/auth/register', { displayName });
+    const response = await apiClient.post<any>('/auth/login', { displayName });
     return response.data?.data || response.data;
   },
 };

@@ -45,31 +45,29 @@ const initialState: AuthState = {
   error: null,
 };
 
-// Async thunk for Signup
-export const registerUserAsync = createAsyncThunk<
+export const loginUserAsync = createAsyncThunk<
   AuthResponse,
-  { displayName: string; email: string; password: string },
+  { displayName: string; password: string },
   { rejectValue: string }
->('auth/signup', async (credentials, { rejectWithValue }) => {
+>('auth/login', async ({ displayName, password }, { rejectWithValue }) => {
   try {
-    const res = await axios.post<AuthResponse>(`${API_URL}/auth/signup`, credentials);
-    return res.data;
+    const res = await axios.post<any>(`${API_URL}/auth/login`, { displayName, password });
+    return res.data?.data || res.data;
   } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Failed to sign up');
+    return rejectWithValue(err.response?.data?.message || 'Failed to sign in');
   }
 });
 
-// Async thunk for Login
-export const loginUserAsync = createAsyncThunk<
+export const registerUserAsync = createAsyncThunk<
   AuthResponse,
-  { email: string; password: string },
+  { displayName: string; password: string },
   { rejectValue: string }
->('auth/login', async (credentials, { rejectWithValue }) => {
+>('auth/signup', async ({ displayName, password }, { rejectWithValue }) => {
   try {
-    const res = await axios.post<AuthResponse>(`${API_URL}/auth/login`, credentials);
-    return res.data;
+    const res = await axios.post<any>(`${API_URL}/auth/signup`, { displayName, password });
+    return res.data?.data || res.data;
   } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Invalid email or password');
+    return rejectWithValue(err.response?.data?.message || 'Failed to create account');
   }
 });
 
