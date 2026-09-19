@@ -1,23 +1,18 @@
- import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
-import { Plus } from 'lucide-react';
 import { Plus } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchTasksAsync, moveTaskAsync } from '../../features/tasks/tasksThunks';
 import { moveTaskOptimistic } from '../../features/tasks/tasksSlice';
 import { BOARD_COLUMNS, Task, TaskStatus } from '../../types/task.types';
-import { moveTaskOptimistic } from '../../features/tasks/tasksSlice';
-import { BOARD_COLUMNS, Task, TaskStatus } from '../../types/task.types';
 import Column from './Column';
-import { TaskModal } from '../modals/TaskModal';
 import { TaskModal } from '../modals/TaskModal';
 
 export default function Board() {
   const dispatch = useAppDispatch();
   const { items: tasks, loading } = useAppSelector((state) => state.tasks);
-  const { items: tasks, loading } = useAppSelector((state) => state.tasks);
+
   const [openTask, setOpenTask] = useState<Task | null>(null);
-  const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
 
   useEffect(() => {
@@ -27,6 +22,7 @@ export default function Board() {
   const handleDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
+
     if (
       source.droppableId === destination.droppableId &&
       source.index === destination.index
@@ -35,32 +31,23 @@ export default function Board() {
     }
 
     const nextStatus = destination.droppableId as TaskStatus;
+    const newOrder = destination.index * 1000 + 1000;
 
+    // Optimistic update
     dispatch(
       moveTaskOptimistic({
         id: draggableId,
         status: nextStatus,
-        order: destination.index * 1000 + 1000,
+        order: newOrder,
       })
     );
 
-    const nextStatus = destination.droppableId as TaskStatus;
-
-    dispatch(
-      moveTaskOptimistic({
-        id: draggableId,
-        status: nextStatus,
-        order: destination.index * 1000 + 1000,
-      })
-    );
-
+    // Server update
     dispatch(
       moveTaskAsync({
         id: draggableId,
         status: nextStatus,
-        order: destination.index * 1000 + 1000,
-        status: nextStatus,
-        order: destination.index * 1000 + 1000,
+        order: newOrder,
       })
     );
   };
@@ -71,22 +58,16 @@ export default function Board() {
     const percentDone = total > 0 ? Math.round((done / total) * 100) : 0;
     return { total, percentDone };
   }, [tasks]);
-  const stats = useMemo(() => {
-    const total = tasks.length;
-    const done = tasks.filter((t) => t.status === 'done').length;
-    const percentDone = total > 0 ? Math.round((done / total) * 100) : 0;
-    return { total, percentDone };
-  }, [tasks]);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
+      {/* Header */}
       <div className="border-b border-gray-200 bg-white px-6 py-3">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Tasks</h2>
             <p className="text-xs text-gray-500">{stats.total} total</p>
           </div>
-
           <div className="flex items-center gap-4">
             <div className="hidden items-center gap-2 md:flex">
               <span className="text-xs text-gray-500">{stats.percentDone}% complete</span>
@@ -97,7 +78,6 @@ export default function Board() {
                 />
               </div>
             </div>
-
             <button
               type="button"
               onClick={() => setIsNewTaskModalOpen(true)}
@@ -110,6 +90,7 @@ export default function Board() {
         </div>
       </div>
 
+      {/* Board */}
       <div className="relative flex-1 overflow-x-auto bg-white p-6">
         {loading && tasks.length === 0 ? (
           <div className="flex h-64 items-center justify-center">
@@ -126,6 +107,7 @@ export default function Board() {
         )}
       </div>
 
+      {/* Task Modals */}
       {openTask && (
         <TaskModal
           isOpen={Boolean(openTask)}
@@ -133,8 +115,6 @@ export default function Board() {
           taskToEdit={openTask}
         />
       )}
-[9/19/2026 2:03 PM] حنان🦋: 
-
       {isNewTaskModalOpen && (
         <TaskModal
           isOpen={isNewTaskModalOpen}
