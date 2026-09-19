@@ -22,8 +22,7 @@ export interface IUser extends Document {
     color: string; // Added for Hackathon Milestone 2 (Visual online indicator)
     isOnline: boolean; // Added for Hackathon Milestone 2 (Presence)
     googleId?: string;
-    facebookId?: string;
-    authProvider?: 'email' | 'google' | 'facebook';
+    authProvider?: 'email' | 'google';
     avatarUrl?: string;
     isEmailVerified: boolean;
     emailVerifiedAt?: Date;
@@ -95,10 +94,9 @@ const userSchema = new Schema<IUser>({
         default: false
     },
     googleId: { type: String, sparse: true },
-    facebookId: { type: String, sparse: true },
     authProvider: {
         type: String,
-        enum: ['email', 'google', 'facebook'],
+        enum: ['email', 'google'],
         default: 'email'
     },
     avatarUrl: { type: String, default: null },
