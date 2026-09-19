@@ -9,14 +9,19 @@
     "start": "node dist/index.js",
     "lint": "tsc --noEmit"
   },
-  "keywords": ["mern", "typescript", "express", "mongodb"],
+  "keywords": [
+    "mern",
+    "typescript",
+    "express",
+    "mongodb"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "mongoose": "^8.5.1"
+    "dotenv": "^16.6.1",
+    "express": "^4.22.3",
+    "mongoose": "^8.24.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
