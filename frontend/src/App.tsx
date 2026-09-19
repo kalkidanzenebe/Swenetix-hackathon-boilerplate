@@ -1,13 +1,8 @@
-import { useSelector, useDispatch } from "react-redux";
-import Board from "./components/board/Board";
-import type { RootState, AppDispatch } from "./app/store";
+import React from 'react';
+import { Board } from './components/board/Board';
 
-function App() {
-  const dispatch: AppDispatch = useDispatch();
-
-  return (
-    <Board />
-  );
-}
+export const App: React.FC = () => {
+  return <Board />;
+};
 
 export default App;
