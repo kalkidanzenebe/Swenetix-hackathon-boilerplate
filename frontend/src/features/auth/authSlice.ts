@@ -9,6 +9,7 @@ export interface AuthUser {
   displayName: string;
   email?: string;
   color?: string;
+  
 }
 
 interface AuthResponse {

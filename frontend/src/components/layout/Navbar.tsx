@@ -40,12 +40,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
         {/* Left: Brand / Title */}
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white shadow-md shadow-blue-600/20">
-            <LayoutGrid size={20} />
-          </div>
+          
           <div>
             <h1 className="text-sm font-semibold tracking-tight text-slate-100">
-              Live Kanban Board
+              Live Task Board
             </h1>
             <p className="text-[11px] text-slate-400">Real-time Workspace</p>
           </div>
@@ -84,7 +82,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <p className="text-xs font-medium text-slate-200 leading-tight">
                   {currentUser.displayName}
                 </p>
-                <p className="text-[10px] text-slate-500">Active</p>
+                <p className="text-[10px] text-slate-500">
+                  {}
+                  Active
+                  </p>
               </div>
             </div>
           )}

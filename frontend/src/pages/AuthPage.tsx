@@ -39,17 +39,15 @@ export const AuthPage: React.FC = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-12">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white-950 px-4 py-12">
       {/* Ambient background glows */}
-      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-indigo-500/15 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-purple-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-white-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-white-500/15 blur-3xl" />
 
-      <div className="relative w-full max-w-md rounded-3xl border border-slate-800/80 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-2xl">
+      <div className="relative w-full max-w-md rounded-3xl border border-slate-800/80 bg-white-900/80 p-8 shadow-2xl backdrop-blur-2xl">
         {/* Brand Header */}
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white shadow-xl shadow-indigo-500/25 ring-1 ring-white/20">
-            <LayoutGrid size={24} />
-          </div>
+          
           <h1 className="text-2xl font-bold tracking-tight text-white">
             TaskFlow
           </h1>
@@ -59,13 +57,13 @@ export const AuthPage: React.FC = () => {
         </div>
 
         {/* Tab Switcher */}
-        <div className="mb-6 grid grid-cols-2 rounded-xl bg-slate-950/60 p-1 border border-slate-800/80">
+        <div className="mb-6 grid grid-cols-2 rounded-xl bg-white-950/60 p-1 border border-slate-800/80">
           <button
             type="button"
             onClick={() => toggleMode(true)}
             className={`rounded-lg py-2 text-xs font-semibold transition-all ${
               isLogin
-                ? 'bg-slate-800 text-white shadow-sm'
+                ? 'bg-white-800 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -76,7 +74,7 @@ export const AuthPage: React.FC = () => {
             onClick={() => toggleMode(false)}
             className={`rounded-lg py-2 text-xs font-semibold transition-all ${
               !isLogin
-                ? 'bg-slate-800 text-white shadow-sm'
+                ? 'bg-white-800 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -106,8 +104,8 @@ export const AuthPage: React.FC = () => {
                 maxLength={32}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="e.g. Alex Rivera"
-                className="w-full rounded-xl border border-slate-700/80 bg-slate-800/80 pl-10 pr-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+                placeholder="e.g. Kalkidan"
+                className="w-full rounded-xl border border-slate-700/80 bg-white-800/80 pl-10 pr-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
               />
             </div>
           </div>
@@ -126,7 +124,7 @@ export const AuthPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-slate-700/80 bg-slate-800/80 pl-10 pr-10 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+                className="w-full rounded-xl border border-slate-700/80 bg-white-800/80 pl-10 pr-10 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
               />
               <button
                 type="button"
@@ -153,27 +151,8 @@ export const AuthPage: React.FC = () => {
 
         {/* Quick Demo Logins for Evaluators */}
         <div className="mt-8 border-t border-slate-800/80 pt-5">
-          <p className="mb-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            One-Click Demo Collaborators (Auto-Auth)
-          </p>
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              onClick={() => handleQuickDemo('Alex Rivera')}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-800/60 py-2.5 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:border-slate-600 transition-all"
-            >
-              <UserCheck size={13} className="text-emerald-400" />
-              <span>Alex (Tab 1)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemo('Sarah Chen')}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-800/60 py-2.5 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:border-slate-600 transition-all"
-            >
-              <UserCheck size={13} className="text-indigo-400" />
-              <span>Sarah (Tab 2)</span>
-            </button>
-          </div>
+          
+         
         </div>
       </div>
     </div>
