@@ -1,26 +1,34 @@
 import { Response } from "express";
-import Task, { COLUMNS, TaskStatus, ITask } from "../models/Task";
+import Task, { ITask, Status } from "../models/Task";
 import { emitToBoard } from "../realtime/io";
-import { dropLockForTask } from "../realtime/presence";
+import {
+  isPriority,
+  isStatus,
+  normaliseAssignee,
+  normaliseLabels,
+  parseDueDate,
+} from "../utils/taskFields";
 import { AuthedRequest } from "../types";
 
-const POSITION_GAP = 1000;
-
-const isColumn = (value: unknown): value is TaskStatus =>
-  typeof value === "string" && (COLUMNS as readonly string[]).includes(value);
+const ORDER_GAP = 1000;
 
 const actorOf = (req: AuthedRequest): string => req.user?.displayName || "unknown";
 
-const serialise = (task: ITask) => ({
+export const serialise = (task: ITask) => ({
   id: task._id.toString(),
   title: task.title,
   description: task.description,
-  column: task.column,
-  position: task.position,
-  version: task.version,
+  order: task.order,
+  priority: task.priority,
   createdBy: task.createdBy,
-  updatedBy: task.updatedBy,
+  assignedTo: task.assignedTo,
+  lockedBy: task.lockedBy,
+  lockedAt: task.lockedAt,
+  version: task.version,
   clientId: task.clientId,
+  labels: task.labels,
+  dueDate: task.dueDate,
+  status: task.status,
   createdAt: task.createdAt,
   updatedAt: task.updatedAt,
 });
@@ -28,13 +36,13 @@ const serialise = (task: ITask) => ({
 export type SerialisedTask = ReturnType<typeof serialise>;
 
 /** Appends to the bottom of a column without renumbering its siblings. */
-const nextPosition = async (column: TaskStatus): Promise<number> => {
-  const last = await Task.findOne({ column }).sort({ position: -1 }).select("position").lean();
-  return last ? last.position + POSITION_GAP : POSITION_GAP;
+const nextOrder = async (status: Status): Promise<number> => {
+  const last = await Task.findOne({ status }).sort({ order: -1 }).select("order").lean();
+  return last ? last.order + ORDER_GAP : ORDER_GAP;
 };
 
 export const listTasks = async (_req: AuthedRequest, res: Response): Promise<void> => {
-  const tasks = await Task.find().sort({ position: 1, createdAt: 1 });
+  const tasks = await Task.find().sort({ order: 1, createdAt: 1 });
   res.status(200).json({ success: true, data: tasks.map(serialise) });
 };
 
@@ -42,7 +50,7 @@ export const createTask = async (req: AuthedRequest, res: Response): Promise<voi
   const title = typeof req.body?.title === "string" ? req.body.title.trim() : "";
   const description =
     typeof req.body?.description === "string" ? req.body.description.trim() : "";
-  const column: TaskStatus = isColumn(req.body?.column) ? req.body.column : "todo";
+  const status: Status = isStatus(req.body?.status) ? req.body.status : "todo";
   const clientId = typeof req.body?.clientId === "string" ? req.body.clientId : undefined;
 
   if (!title) {
@@ -60,20 +68,23 @@ export const createTask = async (req: AuthedRequest, res: Response): Promise<voi
   }
 
   const actor = actorOf(req);
-  const position =
-    typeof req.body?.position === "number" && Number.isFinite(req.body.position)
-      ? req.body.position
-      : await nextPosition(column);
+  const order =
+    typeof req.body?.order === "number" && Number.isFinite(req.body.order)
+      ? req.body.order
+      : await nextOrder(status);
 
   let task: ITask;
   try {
     task = await Task.create({
       title,
       description,
-      column,
-      position,
+      order,
+      priority: isPriority(req.body?.priority) ? req.body.priority : "medium",
       createdBy: actor,
-      updatedBy: actor,
+      assignedTo: normaliseAssignee(req.body?.assignedTo),
+      labels: normaliseLabels(req.body?.labels),
+      dueDate: parseDueDate(req.body?.dueDate),
+      status,
       clientId,
     });
   } catch (err) {
@@ -93,10 +104,14 @@ export const createTask = async (req: AuthedRequest, res: Response): Promise<voi
   res.status(201).json({ success: true, data: payload });
 };
 
+type Editable = Partial<
+  Pick<ITask, "title" | "description" | "status" | "priority" | "assignedTo" | "labels" | "dueDate">
+>;
+
 /**
  * Content edits are guarded by optimistic concurrency: the client sends the version it
  * started from, and a stale version is rejected with the current server copy so the UI
- * can resolve the conflict instead of silently clobbering someone's text.
+ * can resolve the conflict instead of silently clobbering someone's work.
  */
 export const updateTask = async (req: AuthedRequest, res: Response): Promise<void> => {
   const { id } = req.params;
@@ -107,7 +122,7 @@ export const updateTask = async (req: AuthedRequest, res: Response): Promise<voi
     return;
   }
 
-  const updates: Partial<Pick<ITask, "title" | "description" | "column" | "updatedBy">> = {};
+  const updates: Editable = {};
 
   if (typeof req.body?.title === "string") {
     const title = req.body.title.trim();
@@ -117,25 +132,44 @@ export const updateTask = async (req: AuthedRequest, res: Response): Promise<voi
     }
     updates.title = title;
   }
-if (typeof req.body?.description === "string") {
+
+  if (typeof req.body?.description === "string") {
     updates.description = req.body.description.trim();
   }
 
-  if (req.body?.column !== undefined) {
-    if (!isColumn(req.body.column)) {
-      res.status(400).json({ success: false, message: "Unknown column" });
+  if (req.body?.status !== undefined) {
+    if (!isStatus(req.body.status)) {
+      res.status(400).json({ success: false, message: "Unknown status" });
       return;
     }
-    updates.column = req.body.column;
+    updates.status = req.body.status;
+  }
+
+  if (req.body?.priority !== undefined) {
+    if (!isPriority(req.body.priority)) {
+      res.status(400).json({ success: false, message: "Unknown priority" });
+      return;
+    }
+    updates.priority = req.body.priority;
+  }
+
+  // These three accept null to mean "clear it", so presence in the body is what counts.
+  if ("assignedTo" in (req.body || {})) {
+    updates.assignedTo = normaliseAssignee(req.body.assignedTo);
+  }
+
+  if ("labels" in (req.body || {})) {
+    updates.labels = normaliseLabels(req.body.labels);
+  }
+
+  if ("dueDate" in (req.body || {})) {
+    updates.dueDate = parseDueDate(req.body.dueDate);
   }
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ success: false, message: "Nothing to update" });
     return;
   }
-
-  const actor = actorOf(req);
-  updates.updatedBy = actor;
 
   const task = await Task.findOneAndUpdate(
     { _id: id, version },
@@ -153,14 +187,14 @@ if (typeof req.body?.description === "string") {
     res.status(409).json({
       success: false,
       code: "VERSION_CONFLICT",
-      message: `${current.updatedBy} changed this task while you were editing`,
+      message: "This task changed while you were editing",
       data: serialise(current),
     });
     return;
   }
 
   const payload = serialise(task);
-  emitToBoard("task:updated", { task: payload, actor });
+  emitToBoard("task:updated", { task: payload, actor: actorOf(req) });
   res.status(200).json({ success: true, data: payload });
 };
 
@@ -171,21 +205,20 @@ if (typeof req.body?.description === "string") {
 export const moveTask = async (req: AuthedRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
-  if (!isColumn(req.body?.column)) {
-    res.status(400).json({ success: false, message: "Unknown column" });
+  if (!isStatus(req.body?.status)) {
+    res.status(400).json({ success: false, message: "Unknown status" });
     return;
   }
 
-  const column: TaskStatus = req.body.column;
-  const position =
-    typeof req.body?.position === "number" && Number.isFinite(req.body.position)
-      ? req.body.position
-      : await nextPosition(column);
+  const status: Status = req.body.status;
+  const order =
+    typeof req.body?.order === "number" && Number.isFinite(req.body.order)
+      ? req.body.order
+      : await nextOrder(status);
 
-  const actor = actorOf(req);
   const task = await Task.findByIdAndUpdate(
     id,
-    { $set: { column, position, updatedBy: actor }, $inc: { version: 1 } },
+    { $set: { status, order }, $inc: { version: 1 } },
     { new: true, runValidators: true }
   );
 
@@ -195,7 +228,7 @@ export const moveTask = async (req: AuthedRequest, res: Response): Promise<void>
   }
 
   const payload = serialise(task);
-  emitToBoard("task:moved", { task: payload, actor });
+  emitToBoard("task:moved", { task: payload, actor: actorOf(req) });
   res.status(200).json({ success: true, data: payload });
 };
 
@@ -209,7 +242,6 @@ export const deleteTask = async (req: AuthedRequest, res: Response): Promise<voi
     return;
   }
 
-  dropLockForTask(id);
   emitToBoard("task:deleted", { id, actor: actorOf(req) });
   res.status(200).json({ success: true, data: { id } });
 };
