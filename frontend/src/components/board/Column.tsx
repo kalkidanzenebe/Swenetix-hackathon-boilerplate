@@ -10,8 +10,9 @@ interface ColumnProps {
 }
 
 export default function Column({ column, onOpenTask }: ColumnProps) {
-  const tasks = useAppSelector((state) => state.tasks.filter((task) => task.status === column.id));
-
+const tasks = useAppSelector((state) => 
+  state.tasks.items.filter((task) => task.status === column.id)
+);
   return (
     <section
       aria-label={column.title}
