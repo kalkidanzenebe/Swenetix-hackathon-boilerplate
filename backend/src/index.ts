@@ -1,54 +1,48 @@
-import express, { Express, Request, Response } from "express";
 import http from "http";
+import express, { Express, Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 dotenv.config();
 
 import { conn } from "./config/db";
-import { initSockets } from "./sockets";
 import authRoutes from "./routes/auth";
 import taskRoutes from "./routes/tasks";
-import { notFound, errorHandler } from "./middleware/miscellaneous";
+import { errorHandler, notFound } from "./middleware/miscellaneous";
+import { attachRealtime } from "./realtime/socket";
 
 const app: Express = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:3000";
 
-// Connect to MongoDB
-conn();
-
-// Middleware
-app.use(cors({ origin: "*", credentials: true }));
+app.use(cors({ origin: CLIENT_ORIGIN }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Create HTTP server for both Express and Socket.IO
-const server = http.createServer(app);
-
-// Initialize Socket.IO
-const io = initSockets(server);
-app.set("io", io);
-
-// Health check route
 app.get("/", (_req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    message: "Real-time Collaborative Task Board API running",
-    sockets: true,
-  });
+  res.status(200).json({ success: true, message: "Task board API is running" });
 });
 
-// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 
-// Error Handling Middleware
 app.use(notFound);
 app.use(errorHandler);
 
-// Listen on HTTP server
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket server active and ready`);
-});
+const server = http.createServer(app);
+attachRealtime(server, CLIENT_ORIGIN);
 
-export default app;
+const start = async (): Promise<void> => {
+  try {
+    await conn();
+  } catch (err) {
+    console.error("Could not reach MongoDB:", (err as Error).message);
+    process.exit(1);
+  }
+
+  server.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Realtime board accepting clients from ${CLIENT_ORIGIN}`);
+  });
+};
+
+void start();

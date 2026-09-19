@@ -38,7 +38,7 @@ const tasks = useAppSelector((state) =>
             ].join(' ')}
           >
             {tasks.map((task, index) => (
-              <TaskCard key={task._id} task={task} index={index} onOpen={onOpenTask} />
+              <TaskCard key={task.id || task._id} task={task} index={index} onOpen={onOpenTask} />
             ))}
             {provided.placeholder}
           </div>

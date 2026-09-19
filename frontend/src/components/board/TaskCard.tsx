@@ -8,9 +8,10 @@ interface TaskCardProps {
 }
 
 export default function TaskCard({ task, index, onOpen }: TaskCardProps) {
+  const taskId = task.id || task._id || '';
 
   return (
-    <Draggable draggableId={task._id} index={index}>
+    <Draggable draggableId={taskId} index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
