@@ -1,9 +1,9 @@
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
+import mongoose, { Types } from "mongoose";
 import Task, { TASK_LOCK_TIMEOUT_MS } from "../models/Task";
 import { User, colorForName } from "../models/User";
 import { Action } from "../models/ActionLog";
-import { Types } from "mongoose";
 
 export interface ActiveUserData {
   socketId: string;
@@ -14,18 +14,31 @@ export interface ActiveUserData {
   joinedAt: Date;
 }
 
-// In-memory active users tracker
-// Map<socketId, ActiveUserData>
+export interface ActiveLockData {
+  taskId: string;
+  boardId: string;
+  lockedBy: string;
+  lockerName: string;
+  lockerColor: string;
+  lockedAt: Date;
+}
+
+// In-memory active users tracker: Map<socketId, ActiveUserData>
 const activeUsers = new Map<string, ActiveUserData>();
+
+// In-memory active locks tracker: Map<taskId, ActiveLockData>
+const activeLocks = new Map<string, ActiveLockData>();
 
 let ioInstance: Server | null = null;
 
 export const getIO = (): Server | null => ioInstance;
 
+const isDbConnected = (): boolean => mongoose.connection.readyState === 1;
+
 export const initSockets = (server: HttpServer): Server => {
   const io = new Server(server, {
     cors: {
-      origin: "*", // Adjust to specific frontend URL in production
+      origin: "*",
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
       credentials: true,
     },
@@ -49,16 +62,19 @@ export const initSockets = (server: HttpServer): Server => {
         let userColor = color;
         let resolvedUserId = userId || socket.id;
 
-        if (userId && Types.ObjectId.isValid(userId)) {
-          // Join private room for user-specific notifications
+        // Try populating from DB asynchronously if connected
+        if (userId && Types.ObjectId.isValid(userId) && isDbConnected()) {
           socket.join(`user:${userId}`);
-
-          const dbUser = await User.findById(userId);
-          if (dbUser) {
-            userName = dbUser.name || userName;
-            userColor = dbUser.color || colorForName(userName);
-            resolvedUserId = dbUser._id.toString();
-            await User.findByIdAndUpdate(userId, { isOnline: true });
+          try {
+            const dbUser = await User.findById(userId).exec();
+            if (dbUser) {
+              userName = dbUser.name || userName;
+              userColor = dbUser.color || colorForName(userName);
+              resolvedUserId = dbUser._id.toString();
+              await User.findByIdAndUpdate(userId, { isOnline: true }).exec();
+            }
+          } catch {
+            // Fallback to client provided data
           }
         }
 
@@ -77,36 +93,28 @@ export const initSockets = (server: HttpServer): Server => {
 
         activeUsers.set(socket.id, userData);
 
-        // Broadcast to everyone else in this board that user joined
+        // Instant broadcast to peers that user joined
         socket.to(boardId).emit("user_joined", userData);
 
-        // Send current list of active users in this board to joining client
+        // Send active board collaborators to the newly joined client
         const usersInRoom = Array.from(activeUsers.values()).filter(
           (u) => u.boardId === boardId
         );
         socket.emit("active_users", usersInRoom);
 
-        // Milestone 3: Send currently locked tasks on this board to the newcomer
-        const now = new Date();
-        const lockCutoff = new Date(now.getTime() - TASK_LOCK_TIMEOUT_MS);
-        const lockedTasks = await Task.find({
-          boardId: Types.ObjectId.isValid(boardId) ? boardId : null,
-          lockedBy: { $ne: null },
-          lockedAt: { $gt: lockCutoff },
-        }).populate("lockedBy", "name color");
+        // Milestone 3: Send current active locks on this board to newcomer
+        const now = Date.now();
+        // Clean expired in-memory locks
+        for (const [tid, lk] of activeLocks.entries()) {
+          if (now - new Date(lk.lockedAt).getTime() >= TASK_LOCK_TIMEOUT_MS) {
+            activeLocks.delete(tid);
+          }
+        }
 
-        const lockedSummary = lockedTasks.map((t) => {
-          const locker = t.lockedBy as any;
-          return {
-            taskId: t._id,
-            lockedBy: locker?._id || locker,
-            lockerName: locker?.name || "Collaborator",
-            lockerColor: locker?.color || "#2563eb",
-            lockedAt: t.lockedAt,
-          };
-        });
-
-        socket.emit("initial_locks", lockedSummary);
+        const boardLocks = Array.from(activeLocks.values()).filter(
+          (lk) => lk.boardId === boardId
+        );
+        socket.emit("initial_locks", boardLocks);
       } catch (err) {
         console.error("Error in join_board:", err);
       }
@@ -121,14 +129,14 @@ export const initSockets = (server: HttpServer): Server => {
           socket.to(boardId).emit("user_left", userData.userId);
 
           // Unlock any tasks held by this user
-          await releaseUserLocks(userData.userId, boardId, socket);
+          releaseUserLocks(userData.userId, boardId, socket);
         }
       } catch (err) {
         console.error("Error in leave_board:", err);
       }
     });
 
-    // Real-time cursor / active selection sharing
+    // Real-time cursor / selection presence
     socket.on("cursor_move", (data: { boardId: string; x: number; y: number; activeTaskId?: string }) => {
       const userData = activeUsers.get(socket.id);
       if (userData && data.boardId) {
@@ -176,6 +184,7 @@ export const initSockets = (server: HttpServer): Server => {
 
     socket.on("task_deleted", (data: { boardId: string; taskId: string }) => {
       if (data?.boardId) {
+        activeLocks.delete(data.taskId);
         socket.to(data.boardId).emit("task_deleted_live", data.taskId);
       }
     });
@@ -191,52 +200,49 @@ export const initSockets = (server: HttpServer): Server => {
           return;
         }
 
-        const task = await Task.findById(taskId);
-        if (!task) {
-          if (callback) callback({ success: false, message: "Task not found" });
-          return;
-        }
-
-        // Check if already locked by someone else and lock is not expired
         const now = Date.now();
-        const isLockedByOther =
-          task.lockedBy &&
-          task.lockedBy.toString() !== userData.userId.toString() &&
-          task.lockedAt &&
-          now - new Date(task.lockedAt).getTime() < TASK_LOCK_TIMEOUT_MS;
+        const existingLock = activeLocks.get(taskId);
 
-        if (isLockedByOther) {
+        // Check if locked by someone else and not expired
+        if (
+          existingLock &&
+          existingLock.lockedBy !== userData.userId &&
+          now - new Date(existingLock.lockedAt).getTime() < TASK_LOCK_TIMEOUT_MS
+        ) {
           const conflictResponse = {
             taskId,
-            lockedBy: task.lockedBy,
-            message: "Task is currently locked by another collaborator",
+            lockedBy: existingLock.lockedBy,
+            lockerName: existingLock.lockerName,
+            message: `Task is currently locked by ${existingLock.lockerName}`,
           };
           socket.emit("task_lock_rejected", conflictResponse);
           if (callback) callback({ success: false, ...conflictResponse });
           return;
         }
 
-        // Acquire lock in database
-        task.lockedBy = new Types.ObjectId(
-          Types.ObjectId.isValid(userData.userId)
-            ? userData.userId
-            : new Types.ObjectId()
-        );
-        task.lockedAt = new Date();
-        await task.save();
-
-        const lockPayload = {
+        // Acquire lock in memory for instant feedback
+        const lockPayload: ActiveLockData = {
           taskId,
+          boardId,
           lockedBy: userData.userId,
           lockerName: userData.name,
           lockerColor: userData.color,
-          lockedAt: task.lockedAt,
+          lockedAt: new Date(),
         };
+        activeLocks.set(taskId, lockPayload);
 
-        // Notify other clients to disable/tag this task as being edited
+        // Persist to DB asynchronously if DB is connected
+        if (isDbConnected() && Types.ObjectId.isValid(taskId)) {
+          Task.findByIdAndUpdate(taskId, {
+            lockedBy: Types.ObjectId.isValid(userData.userId)
+              ? userData.userId
+              : new Types.ObjectId(),
+            lockedAt: lockPayload.lockedAt,
+          }).catch((e) => console.warn("Lock persistence skipped:", e.message));
+        }
+
+        // Broadcast to all board peers
         socket.to(boardId).emit("task_locked_live", lockPayload);
-
-        // Acknowledge requester
         socket.emit("task_lock_acquired", { taskId });
         if (callback) callback({ success: true, ...lockPayload });
       } catch (err: any) {
@@ -248,25 +254,41 @@ export const initSockets = (server: HttpServer): Server => {
     socket.on("unlock_task", async ({ taskId, boardId }, callback) => {
       try {
         const userData = activeUsers.get(socket.id);
-        const task = await Task.findById(taskId);
+        const existingLock = activeLocks.get(taskId);
 
-        if (task) {
-          // Verify ownership or allow if lock has expired
+        if (existingLock) {
           const isLocker =
-            !userData ||
-            !task.lockedBy ||
-            task.lockedBy.toString() === userData.userId.toString();
+            !userData || existingLock.lockedBy === userData.userId;
+          const isExpired =
+            Date.now() - new Date(existingLock.lockedAt).getTime() >=
+            TASK_LOCK_TIMEOUT_MS;
 
-          if (isLocker || !task.isLocked()) {
-            task.lockedBy = null;
-            task.lockedAt = null;
-            await task.save();
+          if (isLocker || isExpired) {
+            activeLocks.delete(taskId);
+
+            if (isDbConnected() && Types.ObjectId.isValid(taskId)) {
+              Task.findByIdAndUpdate(taskId, {
+                lockedBy: null,
+                lockedAt: null,
+              }).catch(() => {});
+            }
 
             socket.to(boardId).emit("task_unlocked_live", taskId);
             socket.emit("task_unlocked_live", taskId);
             if (callback) callback({ success: true });
             return;
           }
+        } else {
+          // If not in memory, ensure cleared
+          if (isDbConnected() && Types.ObjectId.isValid(taskId)) {
+            Task.findByIdAndUpdate(taskId, {
+              lockedBy: null,
+              lockedAt: null,
+            }).catch(() => {});
+          }
+          socket.to(boardId).emit("task_unlocked_live", taskId);
+          if (callback) callback({ success: true });
+          return;
         }
 
         if (callback) callback({ success: false, message: "Could not release lock" });
@@ -276,17 +298,11 @@ export const initSockets = (server: HttpServer): Server => {
       }
     });
 
-    socket.on("renew_lock", async ({ taskId }) => {
-      try {
-        const userData = activeUsers.get(socket.id);
-        if (userData) {
-          await Task.findOneAndUpdate(
-            { _id: taskId, lockedBy: userData.userId },
-            { lockedAt: new Date() }
-          );
-        }
-      } catch (err) {
-        console.error("Error in renew_lock:", err);
+    socket.on("renew_lock", ({ taskId }) => {
+      const userData = activeUsers.get(socket.id);
+      const lock = activeLocks.get(taskId);
+      if (userData && lock && lock.lockedBy === userData.userId) {
+        lock.lockedAt = new Date();
       }
     });
 
@@ -301,73 +317,72 @@ export const initSockets = (server: HttpServer): Server => {
         if (Array.isArray(actions)) {
           for (const act of actions) {
             const { clientActionId, actionType, payload, timestamp } = act;
-
-            // Idempotency: skip if already executed
-            const existingAction = await Action.findOne({ clientActionId });
-            if (existingAction) {
-              results.push({
-                clientActionId,
-                status: "ALREADY_PROCESSED",
-                conflictResolved: existingAction.conflictResolved,
-              });
-              continue;
-            }
-
             let conflictResolved = false;
             let resultData: any = null;
 
             try {
               if (actionType === "CREATE_TASK") {
-                const newTask = new Task({
+                resultData = {
+                  _id: act.taskId || new Types.ObjectId().toString(),
                   ...payload,
                   boardId: boardId || payload.boardId,
                   clientId: clientActionId,
                   createdBy: userData?.userId || payload.createdBy,
-                });
-                await newTask.save();
-                resultData = newTask;
+                  createdAt: timestamp || new Date(),
+                };
 
-                // Broadcast created task live to board
-                socket.to(boardId).emit("task_created_live", newTask);
-              } else if (actionType === "UPDATE_TASK") {
-                const existingTask = await Task.findById(payload._id || act.taskId);
-                if (existingTask) {
-                  // Conflict check: if incoming version is stale, flag conflict resolution
-                  if (
-                    typeof payload.version === "number" &&
-                    existingTask.version > payload.version
-                  ) {
-                    conflictResolved = true;
-                  }
-                  Object.assign(existingTask, payload);
-                  await existingTask.save();
-                  resultData = existingTask;
-
-                  socket.to(boardId).emit("task_updated_live", existingTask);
+                if (isDbConnected()) {
+                  const newTask = new Task(resultData);
+                  await newTask.save();
+                  resultData = newTask;
                 }
-              } else if (actionType === "MOVE_TASK") {
-                const movedTask = await Task.findByIdAndUpdate(
-                  act.taskId || payload.taskId,
-                  { status: payload.status, order: payload.order },
-                  { new: true }
-                );
-                resultData = movedTask;
 
-                socket.to(boardId).emit("task_moved_live", {
+                // Broadcast live creation to room
+                socket.to(boardId).emit("task_created_live", resultData);
+              } else if (actionType === "UPDATE_TASK") {
+                resultData = payload;
+                if (isDbConnected()) {
+                  const existingTask = await Task.findById(payload._id || act.taskId);
+                  if (existingTask) {
+                    if (
+                      typeof payload.version === "number" &&
+                      existingTask.version > payload.version
+                    ) {
+                      conflictResolved = true;
+                    }
+                    Object.assign(existingTask, payload);
+                    await existingTask.save();
+                    resultData = existingTask;
+                  }
+                }
+                socket.to(boardId).emit("task_updated_live", resultData);
+              } else if (actionType === "MOVE_TASK") {
+                const moveData = {
                   boardId,
                   taskId: act.taskId || payload.taskId,
                   status: payload.status,
                   order: payload.order,
-                });
+                };
+                if (isDbConnected()) {
+                  await Task.findByIdAndUpdate(moveData.taskId, {
+                    status: moveData.status,
+                    order: moveData.order,
+                  });
+                }
+                socket.to(boardId).emit("task_moved_live", moveData);
+                resultData = moveData;
               } else if (actionType === "DELETE_TASK") {
-                await Task.findByIdAndDelete(act.taskId || payload.taskId);
-                socket
-                  .to(boardId)
-                  .emit("task_deleted_live", act.taskId || payload.taskId);
+                const taskId = act.taskId || payload.taskId;
+                activeLocks.delete(taskId);
+                if (isDbConnected()) {
+                  await Task.findByIdAndDelete(taskId);
+                }
+                socket.to(boardId).emit("task_deleted_live", taskId);
+                resultData = { taskId };
               }
 
-              // Log action execution
-              if (userData?.userId && Types.ObjectId.isValid(userData.userId)) {
+              // Persist action log if DB is up
+              if (isDbConnected() && userData?.userId && Types.ObjectId.isValid(userData.userId)) {
                 await Action.create({
                   clientActionId,
                   userId: userData.userId,
@@ -377,7 +392,7 @@ export const initSockets = (server: HttpServer): Server => {
                   timestamp: timestamp ? new Date(timestamp) : new Date(),
                   status: "PROCESSED",
                   conflictResolved,
-                });
+                }).catch(() => {});
               }
 
               results.push({
@@ -422,18 +437,20 @@ export const initSockets = (server: HttpServer): Server => {
       if (userData) {
         activeUsers.delete(socket.id);
 
-        // Tell the board this user left
+        // Tell board collaborators user left
         socket.to(userData.boardId).emit("user_left", userData.userId);
 
-        // Release any tasks they locked
-        await releaseUserLocks(userData.userId, userData.boardId, socket);
+        // Release any locks held by this user
+        releaseUserLocks(userData.userId, userData.boardId, socket);
 
-        // Update user online status if no other active sockets exist for this user
-        const otherSockets = Array.from(activeUsers.values()).some(
-          (u) => u.userId === userData.userId
-        );
-        if (!otherSockets && Types.ObjectId.isValid(userData.userId)) {
-          await User.findByIdAndUpdate(userData.userId, { isOnline: false });
+        // Update online status in DB if connected
+        if (isDbConnected() && Types.ObjectId.isValid(userData.userId)) {
+          const otherSockets = Array.from(activeUsers.values()).some(
+            (u) => u.userId === userData.userId
+          );
+          if (!otherSockets) {
+            User.findByIdAndUpdate(userData.userId, { isOnline: false }).catch(() => {});
+          }
         }
       }
     });
@@ -443,29 +460,27 @@ export const initSockets = (server: HttpServer): Server => {
 };
 
 /**
- * Helper to unlock orphaned tasks locked by a user
+ * Release all locks held by a user across active memory and DB
  */
-async function releaseUserLocks(
-  userId: string,
-  boardId: string,
-  socket: Socket
-): Promise<void> {
+function releaseUserLocks(userId: string, boardId: string, socket: Socket): void {
   try {
     if (!userId) return;
 
-    const query: any = { lockedBy: userId };
-    if (boardId && Types.ObjectId.isValid(boardId)) {
-      query.boardId = boardId;
+    // Release from in-memory active locks
+    for (const [taskId, lock] of activeLocks.entries()) {
+      if (lock.lockedBy === userId && (!boardId || lock.boardId === boardId)) {
+        activeLocks.delete(taskId);
+        socket.to(boardId).emit("task_unlocked_live", taskId);
+      }
     }
 
-    const lockedTasks = await Task.find(query);
-    if (lockedTasks.length > 0) {
-      await Task.updateMany(query, { lockedBy: null, lockedAt: null });
-
-      // Tell room to unlock these cards
-      lockedTasks.forEach((task) => {
-        socket.to(boardId).emit("task_unlocked_live", task._id.toString());
-      });
+    // Persist unlock to DB if connected
+    if (isDbConnected()) {
+      const query: any = { lockedBy: userId };
+      if (boardId && Types.ObjectId.isValid(boardId)) {
+        query.boardId = boardId;
+      }
+      Task.updateMany(query, { lockedBy: null, lockedAt: null }).catch(() => {});
     }
   } catch (err) {
     console.error("Error releasing user locks:", err);

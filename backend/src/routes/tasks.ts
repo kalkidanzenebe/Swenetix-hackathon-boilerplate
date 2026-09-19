@@ -1,8 +1,9 @@
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
 import { Task, TASK_LOCK_TIMEOUT_MS } from "../models/Task";
 import { Action } from "../models/ActionLog";
 import { getIO } from "../sockets";
 import { optionalAuth } from "../middleware/auth";
+import { AuthedRequest } from "../types";
 import { Types } from "mongoose";
 
 const router = Router();
@@ -10,7 +11,7 @@ const router = Router();
 // ==========================================
 // 1. GET ALL TASKS
 // ==========================================
-router.get("/", optionalAuth, async (req: Request, res: Response) => {
+router.get("/", optionalAuth, async (req: AuthedRequest, res: Response) => {
   try {
     const { boardId, status, priority, search } = req.query;
     const query: any = {};
@@ -51,7 +52,7 @@ router.get("/", optionalAuth, async (req: Request, res: Response) => {
 // ==========================================
 // 2. GET SINGLE TASK
 // ==========================================
-router.get("/:id", optionalAuth, async (req: Request, res: Response) => {
+router.get("/:id", optionalAuth, async (req: AuthedRequest, res: Response) => {
   try {
     const task = await Task.findById(req.params.id)
       .populate("assignedTo", "name email color avatarUrl")
@@ -72,7 +73,7 @@ router.get("/:id", optionalAuth, async (req: Request, res: Response) => {
 // ==========================================
 // 3. CREATE TASK (Milestone 1 & 2 Live Broadcast)
 // ==========================================
-router.post("/", optionalAuth, async (req: Request, res: Response) => {
+router.post("/", optionalAuth, async (req: AuthedRequest, res: Response) => {
   try {
     const { title, description, status, priority, dueDate, boardId, labels, clientId } = req.body;
 
@@ -94,7 +95,7 @@ router.post("/", optionalAuth, async (req: Request, res: Response) => {
       boardId: boardId || null,
       labels: labels || [],
       clientId: clientId || undefined,
-      createdBy: req.userId || undefined,
+      createdBy: req.userId || req.user?.id || undefined,
     });
 
     await task.save();
@@ -118,7 +119,7 @@ router.post("/", optionalAuth, async (req: Request, res: Response) => {
 // ==========================================
 // 4. UPDATE TASK (Milestone 3 Concurrency Safe)
 // ==========================================
-router.put("/:id", optionalAuth, async (req: Request, res: Response) => {
+router.put("/:id", optionalAuth, async (req: AuthedRequest, res: Response) => {
   try {
     const task = await Task.findById(req.params.id);
 
@@ -128,7 +129,7 @@ router.put("/:id", optionalAuth, async (req: Request, res: Response) => {
     }
 
     // Concurrency Check: Is task locked by another collaborator?
-    const currentUserId = req.userId?.toString();
+    const currentUserId = req.userId?.toString() || req.user?.id?.toString();
     const now = Date.now();
     const isLockedByOther =
       task.lockedBy &&
@@ -185,7 +186,7 @@ router.put("/:id", optionalAuth, async (req: Request, res: Response) => {
 // ==========================================
 // 5. MOVE TASK (Milestone 1 & 2 Live Broadcast)
 // ==========================================
-router.patch("/:id/move", optionalAuth, async (req: Request, res: Response) => {
+router.patch("/:id/move", optionalAuth, async (req: AuthedRequest, res: Response) => {
   try {
     const { status, order, boardId } = req.body;
     const task = await Task.findById(req.params.id);
@@ -228,7 +229,7 @@ router.patch("/:id/move", optionalAuth, async (req: Request, res: Response) => {
 // ==========================================
 // 6. DELETE TASK
 // ==========================================
-router.delete("/:id", optionalAuth, async (req: Request, res: Response) => {
+router.delete("/:id", optionalAuth, async (req: AuthedRequest, res: Response) => {
   try {
     const task = await Task.findById(req.params.id);
 
@@ -257,9 +258,9 @@ router.delete("/:id", optionalAuth, async (req: Request, res: Response) => {
 // ==========================================
 // 7. LOCK TASK (Milestone 3 Concurrent Safety)
 // ==========================================
-router.post("/:id/lock", optionalAuth, async (req: Request, res: Response) => {
+router.post("/:id/lock", optionalAuth, async (req: AuthedRequest, res: Response) => {
   try {
-    const userId = req.userId || req.body.userId;
+    const userId = req.userId || req.user?.id || req.body.userId;
     if (!userId) {
       res.status(400).json({ success: false, message: "User ID is required to lock task" });
       return;
@@ -287,7 +288,7 @@ router.post("/:id/lock", optionalAuth, async (req: Request, res: Response) => {
       io.to(task.boardId.toString()).emit("task_locked_live", {
         taskId: task._id.toString(),
         lockedBy: userId,
-        lockerName: req.user?.name || req.body.name || "Collaborator",
+        lockerName: req.user?.displayName || (req.user as any)?.name || req.body.name || "Collaborator",
         lockerColor: req.user?.color || req.body.color || "#2563eb",
         lockedAt: task.lockedAt,
       });
@@ -302,9 +303,9 @@ router.post("/:id/lock", optionalAuth, async (req: Request, res: Response) => {
 // ==========================================
 // 8. UNLOCK TASK (Milestone 3)
 // ==========================================
-router.post("/:id/unlock", optionalAuth, async (req: Request, res: Response) => {
+router.post("/:id/unlock", optionalAuth, async (req: AuthedRequest, res: Response) => {
   try {
-    const userId = req.userId || req.body.userId;
+    const userId = req.userId || req.user?.id || req.body.userId;
     const task = await Task.findById(req.params.id);
 
     if (!task) {
@@ -329,10 +330,10 @@ router.post("/:id/unlock", optionalAuth, async (req: Request, res: Response) => 
 // ==========================================
 // 9. OFFLINE SYNC BATCH REPLAY (Bonus Milestone)
 // ==========================================
-router.post("/sync", optionalAuth, async (req: Request, res: Response) => {
+router.post("/sync", optionalAuth, async (req: AuthedRequest, res: Response) => {
   try {
     const { actions, boardId } = req.body;
-    const userId = req.userId || req.body.userId;
+    const userId = req.userId || req.user?.id || req.body.userId;
 
     if (!Array.isArray(actions)) {
       res.status(400).json({ success: false, message: "Actions array is required" });

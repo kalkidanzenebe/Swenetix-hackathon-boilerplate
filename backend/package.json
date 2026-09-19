@@ -1,24 +1,26 @@
 {
-  "name": "mern-backend",
+  "name": "task-board-backend",
   "version": "1.0.0",
-  "description": "Simple MERN backend boilerplate with TypeScript",
+  "description": "Real-time collaborative task board API (Express + Socket.IO + MongoDB)",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "npm run build && node --test \"tests/*.test.mjs\"",
+    "smoke": "node tests/smoke.mjs"
   },
   "keywords": [
-    "mern",
+    "task-board",
+    "realtime",
+    "socket.io",
     "typescript",
-    "express",
     "mongodb"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.22.3",

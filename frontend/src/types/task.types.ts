@@ -23,3 +23,13 @@ export interface UpdateTaskDTO {
   description?: string;
   status?: TaskStatus;
 }
+
+export interface ColumnDef {
+  id: TaskStatus;
+  title: string;
+}
+export const BOARD_COLUMNS: ColumnDef[] = [
+  { id: 'To Do', title: 'To Do' },
+  { id: 'In Progress', title: 'In Progress' },
+  { id: 'Done', title: 'Done' },
+];
