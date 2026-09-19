@@ -1,13 +1,18 @@
-import { Verify } from "crypto";
-import { Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
+
+export interface AuthenticatedRequest extends Request {
+  user?: any;
+}
 
 export const requireAuth = (
-    req: {headers: {authorization: "hehe"}, user: "me"}, res: Response, next: NextFunction
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
 ) => {
-    const header = req.headers.authorization || "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-    const user = token ? VerifyToken(token):null
-    if(!user){
-        req.status(401)
-    }
-}
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (!token) {
+    return res.status(401).json({ success: false, message: "Unauthorized: No token provided" });
+  }
+  return next();
+};
