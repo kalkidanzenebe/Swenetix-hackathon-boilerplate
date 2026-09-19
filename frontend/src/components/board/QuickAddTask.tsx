@@ -11,6 +11,7 @@ interface QuickAddTaskProps {
 export default function QuickAddTask({ status }: QuickAddTaskProps) {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector((state) => state.auth?.currentUser);
+  const currentUser = useAppSelector((state) => state.auth?.currentUser);
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
 
@@ -25,6 +26,14 @@ export default function QuickAddTask({ status }: QuickAddTaskProps) {
       close();
       return;
     }
+    dispatch(
+      createTaskAsync({
+        title: trimmed,
+        status,
+        createdBy: currentUser?.displayName || 'Anonymous',
+        clientId: `client-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      })
+    );
     dispatch(
       createTaskAsync({
         title: trimmed,
@@ -50,15 +59,19 @@ export default function QuickAddTask({ status }: QuickAddTaskProps) {
       >
         <Plus size={14} />
         <span>Add a task</span>
+        <Plus size={14} />
+        <span>Add a task</span>
       </button>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
       <textarea
         autoFocus
         rows={2}
+        placeholder="What needs to be done?"
         placeholder="What needs to be done?"
         value={title}
         onChange={(e) => setTitle(e.target.value)}

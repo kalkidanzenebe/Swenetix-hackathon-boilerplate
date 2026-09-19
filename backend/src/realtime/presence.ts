@@ -5,7 +5,6 @@ export interface Member {
 }
 
 export interface PresenceEntry extends Member {
-  /** How many tabs this person has open. */
   connections: number;
 }
 
@@ -16,7 +15,6 @@ export interface EditLock {
   touchedAt: number;
 }
 
-/** A lock is dropped if its owner stops sending heartbeats (tab crashed, network died). */
 export const LOCK_TTL_MS = 15_000;
 
 const sockets = new Map<string, Member>();
@@ -26,7 +24,6 @@ export const addSocket = (socketId: string, member: Member): void => {
   sockets.set(socketId, member);
 };
 
-/** Removes the socket and returns the ids of tasks whose locks it was holding. */
 export const removeSocket = (socketId: string): string[] => {
   sockets.delete(socketId);
 
@@ -55,10 +52,6 @@ export const roster = (): PresenceEntry[] => {
   return [...byUser.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
 };
 
-/**
- * Claims the editing indicator for a task. Returns false when somebody else already
- * holds a live lock, which is what makes the "Sara is editing" badge trustworthy.
- */
 export const acquireLock = (taskId: string, socketId: string, user: Member): boolean => {
   const existing = locks.get(taskId);
   const stale = existing && Date.now() - existing.touchedAt > LOCK_TTL_MS;
@@ -81,7 +74,6 @@ export const dropLockForTask = (taskId: string): void => {
   locks.delete(taskId);
 };
 
-/** Drops expired locks and reports whether anything changed. */
 export const sweepLocks = (): boolean => {
   const cutoff = Date.now() - LOCK_TTL_MS;
   let changed = false;
@@ -100,7 +92,6 @@ export const activeLocks = (): Array<{ taskId: string; user: Member }> =>
     .filter((lock) => Date.now() - lock.touchedAt <= LOCK_TTL_MS)
     .map(({ taskId, user }) => ({ taskId, user }));
 
-/** Test/reset helper. */
 export const resetPresence = (): void => {
   sockets.clear();
   locks.clear();

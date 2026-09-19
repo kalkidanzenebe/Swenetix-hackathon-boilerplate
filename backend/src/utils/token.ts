@@ -13,10 +13,6 @@ const base64url = (input: Buffer | string): string =>
 const sign = (body: string): string =>
   crypto.createHmac("sha256", secret()).update(body).digest("base64url");
 
-/**
- * Minimal signed token. The board has no passwords by design (the brief asks for a
- * display-name login), so the token only proves "this browser claimed this name".
- */
 export const createToken = (payload: TokenPayload): string => {
   const body = base64url(JSON.stringify(payload));
   return `${body}.${sign(body)}`;

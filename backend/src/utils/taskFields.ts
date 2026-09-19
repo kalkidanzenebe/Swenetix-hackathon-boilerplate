@@ -13,7 +13,6 @@ export const normaliseAssignee = (value: unknown): string | null => {
   return trimmed ? trimmed.slice(0, 32) : null;
 };
 
-/** Trimmed, de-duplicated, capped — labels come straight from a free-text field. */
 export const normaliseLabels = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
 
@@ -27,7 +26,6 @@ export const normaliseLabels = (value: unknown): string[] => {
   return seen.slice(0, 8);
 };
 
-/** Accepts an ISO string or null; anything unparseable is treated as no due date. */
 export const parseDueDate = (value: unknown): Date | null => {
   if (value === null || value === undefined || value === "") return null;
   if (typeof value !== "string" && typeof value !== "number") return null;

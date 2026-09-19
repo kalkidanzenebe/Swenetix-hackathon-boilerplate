@@ -38,6 +38,7 @@ const getInitials = (name?: string | null): string => {
 
 export default function TaskCard({ task, index, onOpen }: TaskCardProps) {
   const dispatch = useAppDispatch();
+  const dispatch = useAppDispatch();
   const taskId = task.id || task._id || '';
   const priority = priorityConfig[task.priority || 'medium'];
   const isLocked = Boolean(task.lockedBy);

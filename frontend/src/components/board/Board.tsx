@@ -1,17 +1,23 @@
  import { useEffect, useState, useMemo } from 'react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchTasksAsync, moveTaskAsync } from '../../features/tasks/tasksThunks';
 import { moveTaskOptimistic } from '../../features/tasks/tasksSlice';
 import { BOARD_COLUMNS, Task, TaskStatus } from '../../types/task.types';
+import { moveTaskOptimistic } from '../../features/tasks/tasksSlice';
+import { BOARD_COLUMNS, Task, TaskStatus } from '../../types/task.types';
 import Column from './Column';
+import { TaskModal } from '../modals/TaskModal';
 import { TaskModal } from '../modals/TaskModal';
 
 export default function Board() {
   const dispatch = useAppDispatch();
   const { items: tasks, loading } = useAppSelector((state) => state.tasks);
+  const { items: tasks, loading } = useAppSelector((state) => state.tasks);
   const [openTask, setOpenTask] = useState<Task | null>(null);
+  const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
 
   useEffect(() => {
@@ -38,15 +44,33 @@ export default function Board() {
       })
     );
 
+    const nextStatus = destination.droppableId as TaskStatus;
+
+    dispatch(
+      moveTaskOptimistic({
+        id: draggableId,
+        status: nextStatus,
+        order: destination.index * 1000 + 1000,
+      })
+    );
+
     dispatch(
       moveTaskAsync({
         id: draggableId,
+        status: nextStatus,
+        order: destination.index * 1000 + 1000,
         status: nextStatus,
         order: destination.index * 1000 + 1000,
       })
     );
   };
 
+  const stats = useMemo(() => {
+    const total = tasks.length;
+    const done = tasks.filter((t) => t.status === 'done').length;
+    const percentDone = total > 0 ? Math.round((done / total) * 100) : 0;
+    return { total, percentDone };
+  }, [tasks]);
   const stats = useMemo(() => {
     const total = tasks.length;
     const done = tasks.filter((t) => t.status === 'done').length;

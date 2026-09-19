@@ -13,10 +13,6 @@ const SALT_BYTES = 16;
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 128;
 
-/**
- * scrypt from Node's own crypto — a real key-derivation function, no extra dependency.
- * Stored as `scrypt$<salt>$<hash>` so the salt travels with the hash.
- */
 export const hashPassword = async (password: string): Promise<string> => {
   const salt = crypto.randomBytes(SALT_BYTES);
   const derived = await scrypt(password, salt, KEY_LENGTH);
@@ -39,7 +35,6 @@ export const verifyPassword = async (password: string, stored: string): Promise<
   return crypto.timingSafeEqual(derived, expected);
 };
 
-/** Returns a complaint to show the user, or null when the password is acceptable. */
 export const describePasswordProblem = (password: unknown): string | null => {
   if (typeof password !== "string" || password.length === 0) return "Password is required";
   if (password.length < MIN_PASSWORD_LENGTH) {
