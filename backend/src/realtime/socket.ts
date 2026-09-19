@@ -26,8 +26,6 @@ export const attachRealtime = (httpServer: HttpServer, origin: string | string[]
 
   setIO(io);
 
-  // The socket carries the same token as the REST calls, so presence cannot be spoofed
-  // any more easily than the API itself.
   io.use((socket: BoardSocket, next) => {
     const token = (socket.handshake.auth?.token as string) || "";
     const user = verifyToken(token);

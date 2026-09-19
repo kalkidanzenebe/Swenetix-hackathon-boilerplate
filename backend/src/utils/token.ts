@@ -3,7 +3,6 @@ import crypto from "crypto";
 export interface TokenPayload {
   id: string;
   displayName: string;
-  color: string;
 }
 
 const secret = (): string => process.env.AUTH_SECRET || "dev-only-insecure-secret";
